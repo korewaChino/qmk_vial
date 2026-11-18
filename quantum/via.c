@@ -24,6 +24,8 @@
 
 #include "quantum.h"
 
+#include <string.h>
+
 #include "via.h"
 
 #include "raw_hid.h"
@@ -33,6 +35,10 @@
 
 #if defined(RGB_MATRIX_ENABLE)
 #    include <lib/lib8tion/lib8tion.h>
+#endif
+
+#if defined(VIALRGB_ENABLE)
+#    include "vialrgb.h"
 #endif
 
 // Can be called in an overriding via_init_kb() to test if keyboard level code usage of
@@ -200,6 +206,20 @@ __attribute__((weak)) void via_custom_value_command(uint8_t *data, uint8_t lengt
     // data = [ command_id, channel_id, value_id, value_data ]
     uint8_t *channel_id = &(data[1]);
 
+#if defined(VIALRGB_ENABLE)
+    // VialRGB puts its sub-command where the channel byte goes and starts at 0x40
+    if (*channel_id >= 0x40) {
+        switch (*data) {
+            case id_custom_set_value:
+                vialrgb_set_value(data, length);
+                return;
+            case id_custom_get_value:
+                vialrgb_get_value(data, length);
+                return;
+        }
+    }
+#endif
+
 #if defined(BACKLIGHT_ENABLE)
     if (*channel_id == id_qmk_backlight_channel) {
         via_qmk_backlight_command(data, length);
@@ -361,6 +381,13 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
             break;
         }
 #endif
+        case id_bootloader_jump: {
+            // Send the reply first, otherwise the reset lands before the host sees anything
+            command_data[0] = id_bootloader_jump;
+            raw_hid_send(data, length);
+            bootloader_jump();
+            return;
+        }
         case id_dynamic_keymap_macro_get_count: {
             command_data[0] = dynamic_keymap_macro_get_count();
             break;
@@ -412,6 +439,20 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         }
         case id_dynamic_keymap_set_encoder: {
             dynamic_keymap_set_encoder(command_data[0], command_data[1], command_data[2] != 0, (command_data[3] << 8) | command_data[4]);
+            break;
+        }
+#endif
+#if defined(VIALRGB_ENABLE)
+        case 0xFE: { // Vial command space, only the keyboard id query is answered
+            if (command_data[0] == 0x00) {
+                const uint8_t uid[8] = {'K', '1', '0', 'P', 'R', 'O', 0x00, 0x01};
+                memset(data, 0, length);
+                data[0] = 4; // Vial protocol version, little endian
+                memcpy(&data[4], uid, sizeof(uid));
+                data[12] = 1; // VialRGB supported
+            } else {
+                *command_id = id_unhandled;
+            }
             break;
         }
 #endif

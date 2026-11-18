@@ -1,1 +1,1 @@
-# This file intentionally blank
+VIALRGB_ENABLE = yes

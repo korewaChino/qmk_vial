@@ -631,6 +631,11 @@ ifeq ($(strip $(VIA_ENABLE)), yes)
     OPT_DEFS += -DVIA_ENABLE
 endif
 
+ifeq ($(strip $(VIALRGB_ENABLE)), yes)
+    SRC += $(QUANTUM_DIR)/vialrgb.c
+    OPT_DEFS += -DVIALRGB_ENABLE
+endif
+
 VALID_MAGIC_TYPES := yes
 BOOTMAGIC_ENABLE ?= no
 ifneq ($(strip $(BOOTMAGIC_ENABLE)), no)

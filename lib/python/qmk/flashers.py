@@ -2,6 +2,7 @@ import platform
 import shutil
 import time
 import os
+import glob
 import signal
 
 import usb.core
@@ -77,8 +78,27 @@ def _find_uf2_devices():
     return cli.run(['util/uf2conv.py', '--list']).stdout.splitlines()
 
 
+def _request_dfu_jump():
+    """Ask a running QMK firmware to reboot into its bootloader."""
+    for hidraw in glob.glob('/sys/class/hidraw/hidraw*'):
+        try:
+            with open(os.path.join(hidraw, 'device/report_descriptor'), 'rb') as descriptor_file:
+                descriptor = descriptor_file.read(4)
+        except OSError:
+            continue
+        # Usage page 0xFF60, usage 0x61: the QMK raw HID interface
+        if descriptor != b'\x06\x60\xff\x09':
+            continue
+        try:
+            with open('/dev/' + os.path.basename(hidraw), 'r+b', buffering=0) as device:
+                device.write(bytes([0x0B]) + bytes(31))
+        except OSError:
+            continue
+
+
 def _find_bootloader():
     # To avoid running forever in the background, only look for bootloaders for 10min
+    _request_dfu_jump()
     start_time = time.time()
     while time.time() - start_time < 600:
         for bl in BOOTLOADER_VIDS_PIDS:

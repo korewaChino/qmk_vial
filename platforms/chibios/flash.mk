@@ -39,6 +39,7 @@ define EXEC_WB32_DFU_UPDATER
 endef
 
 dfu-util: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
+	@python3 $(TOP_DIR)/util/request_dfu_jump.py || true; sleep 1
 	$(call EXEC_DFU_UTIL)
 
 define EXEC_UF2_UTIL_DEPLOY
@@ -102,6 +103,7 @@ teensy: $(BUILD_DIR)/$(TARGET).hex cpfirmware sizeafter
 	$(call EXEC_TEENSY)
 
 flash: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
+	@python3 $(TOP_DIR)/util/request_dfu_jump.py || true; sleep 1
 	$(SILENT) || printf "Flashing for bootloader: $(BLUE)$(BOOTLOADER)$(NO_COLOR)\n"
 ifneq ($(strip $(PROGRAM_CMD)),)
 	$(UNSYNC_OUTPUT_CMD) && $(PROGRAM_CMD)
